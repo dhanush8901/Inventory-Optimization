@@ -1,0 +1,62 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>10. Inventory Optimization</title><style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#1c2333;--mut:#667085;--line:#e4e7ee;--ac:#4f46e5;--in:#0ea5e9;--pr:#6366f1;--de:#f59e0b;--ou:#10b981}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 18px 60px}a{color:var(--ac)}
+h1{font-size:26px;margin:6px 0}h2{font-size:18px;margin:0 0 12px}.tag{display:inline-block;background:#eef2ff;color:var(--ac);border-radius:99px;padding:2px 12px;font-size:12px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:16px 0}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0}
+.node{width:min(560px,100%);padding:10px 16px;border-radius:10px;text-align:center;font-size:14px;border:2px solid;background:#fff}
+.node.input{border-color:var(--in);background:#f0f9ff;border-radius:99px}.node.process{border-color:var(--pr);background:#eef2ff}
+.node.decision{border-color:var(--de);background:#fffbeb;transform:skewX(-6deg);font-weight:600}.node.decision span{display:inline-block;transform:skewX(6deg)}
+.node.output{border-color:var(--ou);background:#ecfdf5;border-radius:99px;font-weight:600}
+.arrow{width:2px;height:18px;background:#98a2b3;position:relative}.arrow:after{content:"";position:absolute;bottom:-1px;left:-4px;border:5px solid transparent;border-top:7px solid #98a2b3;border-bottom:0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-bottom:12px}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;border:2px solid;margin-right:4px;vertical-align:-2px}
+pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.5;margin:0}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:14px}.ctl label{font-size:13px;color:var(--mut);display:block}.ctl b{color:var(--ink)}input[type=range]{width:100%;accent-color:var(--ac)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.kpi{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.kpi small{color:var(--mut);display:block;font-size:12px}.kpi div{font-size:19px;font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}th{background:#f8fafc;color:var(--mut);font-weight:600}.tw{overflow:auto}
+.bars{margin-top:14px}.br{display:grid;grid-template-columns:150px 1fr 70px;gap:8px;align-items:center;font-size:12px;margin:4px 0}.bt{background:#eef0f6;border-radius:6px;height:16px;position:relative}.bf{height:100%;border-radius:6px;background:var(--ac)}.bf.neg{background:#ef4444}.ref{position:absolute;top:-3px;bottom:-3px;width:2px;background:#111}
+.ins{background:#eef2ff;border-left:4px solid var(--ac);padding:10px 14px;border-radius:6px;margin-top:14px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}.grid a{text-decoration:none;color:inherit}.grid .card{margin:0;height:100%;transition:.15s}.grid .card:hover{border-color:var(--ac);transform:translateY(-2px)}
+.grid p{color:var(--mut);font-size:13px;margin:6px 0 0}.nav{display:flex;justify-content:space-between;margin-top:20px;font-size:14px}
+</style></head><body><div class="wrap">
+<div style="margin-top:10px"><span class="tag">Operations · Project 10</span></div><h1>Inventory Optimization</h1>
+<div class="card"><h2>Problem</h2><p style="margin:0">A retailer has stockouts on fast sellers and excess on slow movers. Combine demand, seasonality, sales, stock and supplier lead times to recommend inventory decisions.</p></div>
+<div class="card"><h2>Algorithm flow</h2><div class="legend"><span><i style="border-color:var(--in);background:#f0f9ff"></i>Input</span><span><i style="border-color:var(--pr);background:#eef2ff"></i>Process</span><span><i style="border-color:var(--de);background:#fffbeb"></i>Decision</span><span><i style="border-color:var(--ou);background:#ecfdf5"></i>Output</span></div><div class="flow"><div class="node input"><span>Load sales history, stock on hand, supplier lead times</span></div><div class="arrow"></div><div class="node process"><span>De-seasonalise &amp; forecast demand (mean μ, std σ per product)</span></div><div class="arrow"></div><div class="node process"><span>Choose service level → z-score</span></div><div class="arrow"></div><div class="node process"><span>Safety stock = z · σ · √L ;  Reorder point = μ·L + SS</span></div><div class="arrow"></div><div class="node decision"><span>Stock vs reorder point / max level?</span></div><div class="arrow"></div><div class="node process"><span>Stock ≤ ROP → REORDER (qty up to order-up-to level)</span></div><div class="arrow"></div><div class="node process"><span>Stock &gt; 2× target → EXCESS: markdown / pause orders</span></div><div class="arrow"></div><div class="node output"><span>Per-SKU action list + working-capital impact</span></div></div></div>
+<div class="card"><h2>Pseudocode</h2><pre>for sku in skus:
+    mu, sigma = forecast(sku.history, seasonality=True)
+    z   = norm_inv(SERVICE_LEVEL)
+    ss  = z * sigma * sqrt(sku.lead_time)
+    rop = mu * sku.lead_time + ss
+    target = rop + mu * REVIEW_PERIOD
+    if sku.stock &lt;= rop:        action = (&#x27;REORDER&#x27;, target - sku.stock)
+    elif sku.stock &gt; 2*target:  action = (&#x27;EXCESS - markdown&#x27;, sku.stock - target)
+    else:                       action = (&#x27;HOLD&#x27;, 0)</pre></div>
+<div class="card"><h2>Interactive demo <span style="font-weight:400;color:var(--mut);font-size:13px">(synthetic data – move the sliders)</span></h2><div class="ctl"><div><label>Service level %: <b id="v_sl"></b><input type="range" data-p="sl" min="80" max="99" step="1" value="95"></label></div><div><label>Review period (days): <b id="v_rev"></b><input type="range" data-p="rev" min="1" max="30" step="1" value="7"></label></div></div><div class="kpis" id="kpis"></div><div class="tw"><table id="tbl"></table></div><div class="bars" id="bars"></div><div class="ins" id="ins"></div></div>
+</div>
+<script>
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function fmt$(v){return v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'k':'$'+Math.round(v)}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+const P={};
+function readParams(){document.querySelectorAll('[data-p]').forEach(i=>{P[i.dataset.p]=parseFloat(i.value);document.getElementById('v_'+i.dataset.p).textContent=i.value})}
+function draw(){readParams();const o=run(P);
+ document.getElementById('kpis').innerHTML=o.kpis.map(k=>`<div class="kpi"><small>${esc(k[0])}</small><div>${esc(k[1])}</div></div>`).join('');
+ document.getElementById('tbl').innerHTML='<tr>'+o.cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+o.rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('');
+ const mx=Math.max(...o.bars.map(b=>Math.abs(b[1])),o.barRef||0)||1;
+ document.getElementById('bars').innerHTML=`<b style="font-size:13px">${esc(o.barTitle)}</b>`+o.bars.map(b=>`<div class="br"><span>${esc(b[0])}</span><div class="bt"><div class="bf ${b[1]<0?'neg':''}" style="width:${Math.abs(b[1])/mx*100}%"></div>${o.barRef!=null?`<div class="ref" style="left:${o.barRef/mx*100}%"></div>`:''}</div><span>${(+b[1]).toFixed(Math.abs(b[1])>=100?0:2)}</span></div>`).join('');
+ document.getElementById('ins').textContent='💡 '+o.insight}
+document.querySelectorAll('[data-p]').forEach(i=>i.addEventListener('input',draw));
+
+
+const R=rng(2);const D=Array.from({length:14},(_,i)=>{const mu=1+R()*30;return {n:'SKU-'+(200+i),mu,sd:mu*(0.2+R()*0.5),L:3+Math.round(R()*14),stock:Math.round(mu*(R()*35)),cost:5+R()*60}});
+function zinv(p){let lo=-4,hi=4;for(let i=0;i<50;i++){const m=(lo+hi)/2;const c=0.5*(1+erf(m/Math.SQRT2));c<p?lo=m:hi=m}return (lo+hi)/2}
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y}
+function run(p){const z=zinv(p.sl/100);let ord=0,exc=0,so=0;
+ const rows=D.map(d=>{const ss=z*d.sd*Math.sqrt(d.L),rop=d.mu*d.L+ss,tg=rop+d.mu*p.rev;let a='HOLD',q=0;if(d.stock<=rop){a='🔴 REORDER';q=Math.round(tg-d.stock);ord+=q*d.cost;if(d.stock<d.mu*d.L*0.5)so++}else if(d.stock>2*tg){a='🟠 EXCESS → markdown';q=Math.round(d.stock-tg);exc+=q*d.cost}else a='🟢 HOLD';
+  return [d.n,d.mu.toFixed(1)+'/d',d.L+'d',Math.round(ss),Math.round(rop),d.stock,a,q||'—']});
+ return {kpis:[['Service level',p.sl+'% (z='+z.toFixed(2)+')'],['Reorder value',fmt$(ord)],['Excess stock value',fmt$(exc)],['Stockout risk SKUs',so]],
+ cols:['SKU','Demand','Lead time','Safety stock','Reorder pt','On hand','Decision','Qty'],rows,bars:D.map(d=>[d.n,d.stock/(d.mu*d.L||1)]),barTitle:'Stock cover ÷ lead-time demand (<1 = stockout risk)',barRef:1,
+ insight:'Fast sellers with long lead times get reorder triggers; overstocked slow movers get markdown. Raising service level lifts safety stock (and capital tied up).'};}
+
+draw();</script></body></html>
